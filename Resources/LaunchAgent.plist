@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Starts ZenPiP at login and restarts it if it stops unexpectedly.
+     scripts/install.sh fills in __HOME__ and copies this to ~/Library/LaunchAgents/local.zenpip.plist. -->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>local.zenpip</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>__HOME__/Applications/ZenPiP.app/Contents/MacOS/ZenPiP</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>KeepAlive</key>
+	<dict>
+		<key>SuccessfulExit</key>
+		<false/>
+	</dict>
+	<key>ProcessType</key>
+	<string>Interactive</string>
+	<key>StandardOutPath</key>
+	<string>__HOME__/Library/Logs/ZenPiP.log</string>
+	<key>StandardErrorPath</key>
+	<string>__HOME__/Library/Logs/ZenPiP.log</string>
+</dict>
+</plist>
