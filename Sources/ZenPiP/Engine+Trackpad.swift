@@ -31,23 +31,34 @@ extension Engine {
             if phase == Phase.mayBegin || !gestureDecided || stale {
                 momentumOurs = false
                 gestureDecided = true
-                gestureOurs = beginGesture(e)
+                tabSwipe = nil
+                gestureOurs = beginTabSwipe(at: e.location) || beginGesture(e)
             }
             return gestureOurs
         case Phase.changed:
             if stale && !gestureDecided {
                 gestureDecided = true
-                gestureOurs = beginGesture(e)
+                tabSwipe = nil
+                gestureOurs = beginTabSwipe(at: e.location) || beginGesture(e)
             }
             guard gestureOurs, let ns = NSEvent(cgEvent: e) else { return false }
-            follow(fingerDelta(ns), at: ns.timestamp * 1000)
+            if tabSwipe != nil {
+                followTabSwipe(fingerDelta(ns))
+            } else {
+                follow(fingerDelta(ns), at: ns.timestamp * 1000)
+            }
             return true
         case Phase.ended, Phase.cancelled:
             let ours = gestureOurs
             gestureDecided = false
             gestureOurs = false
             if ours {
-                release(at: (NSEvent(cgEvent: e)?.timestamp ?? ProcessInfo.processInfo.systemUptime) * 1000)
+                if tabSwipe != nil {
+                    tabSwipe = nil
+                    runPendingSpaceCheck()
+                } else {
+                    release(at: (NSEvent(cgEvent: e)?.timestamp ?? ProcessInfo.processInfo.systemUptime) * 1000)
+                }
                 momentumOurs = phase == Phase.ended
             }
             return ours
@@ -61,7 +72,20 @@ extension Engine {
         // ⌃, ⌘ and ⌥ + scroll keep their usual meaning (for example, accessibility zoom).
         if !e.flags.intersection([.maskControl, .maskCommand, .maskAlternate]).isEmpty { return false }
         settings = Settings.load()  // before looking, so the debug log can say why a swipe wasn't picked up
-        guard let pip = findPip(at: e.location) else { return false }
+        guard var pip = findPip(at: e.location) else { return false }
+        if let entry = stashed, entry.id == pip.id, entry.phase == .parked {
+            unstash()  // a sliver of a stashed window: bring it back rather than push it around
+            return false
+        }
+        if target?.id == pip.id, spring?.onArrive != nil || growTimer != nil {
+            if stashed?.phase != .returning {
+                finishSpring()  // on its way to being stashed: let it finish tucking away
+                return false
+            }
+            finishSpring()  // coming back from the edge: jump to full size, then carry on as normal
+            finishGrowing(runPending: false)
+            if let tg = target { pip = Pip(id: pip.id, ax: pip.ax, frame: CGRect(origin: shown, size: tg.size)) }
+        }
         caughtDest = nil
 
         if let s = spring, target?.id == pip.id {
@@ -83,6 +107,7 @@ extension Engine {
 
         guard let tg = target else { return false }
         moved = false
+        gestureStart = tg.pos
         pointerOrigin = e.location
         pointerOffset = CGVector(dx: e.location.x - tg.pos.x, dy: e.location.y - tg.pos.y)
         Pointer.forget()
@@ -133,7 +158,13 @@ extension Engine {
 
         let v = Physics.releaseVelocity(samples, endTime: t)
         samples.removeAll()
-        if hypot(v.dx, v.dy) >= Physics.flingSpeed {
+        let isThrow = hypot(v.dx, v.dy) >= Physics.flingSpeed
+        if let side = Stash.side(releasedAt: tg.pos, startedAt: gestureStart, velocity: v, isThrow: isThrow,
+                                 pushedPast: Stash.pushPast, bounds: tg.bounds), canStash(side) {
+            // Pushed or flicked past a side: tuck it away. The pointer goes back to what you were doing.
+            if settings.followPointer, let origin = pointerOrigin { Pointer.move(to: origin, within: tg.display) }
+            stash(side, velocity: v)
+        } else if isThrow {
             // A throw: the video goes out of the way, and the pointer goes back to what you were doing.
             let dest = Physics.throwDestination(from: tg.pos, velocity: v, bounds: tg.bounds)
             debug(String(format: "Throw at %.2f, %.2f pt/ms to %.0f, %.0f", v.dx, v.dy, dest.x, dest.y))

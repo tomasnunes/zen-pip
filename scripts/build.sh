@@ -14,7 +14,7 @@ mkdir -p "$APP/Contents/MacOS"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 # Built for macOS 13 or later, for this Mac's processor (Apple silicon or Intel).
 xcrun swiftc -O -swift-version 5 -module-name ZenPiP -target "$(uname -m)-apple-macos13" \
-  -framework AppKit -framework ApplicationServices -framework QuartzCore \
+  -framework AppKit -framework ApplicationServices -framework QuartzCore -framework CoreAudio \
   -o "$APP/Contents/MacOS/ZenPiP" Sources/ZenPiP/*.swift
 # Signed "ad hoc" (no developer certificate needed). macOS ties the Accessibility permission to
 # this exact signature, which is why a rebuilt app needs the permission granted again.

@@ -57,15 +57,32 @@ enum Screens {
     }
 
     /// The display showing most of a window (the one containing its centre, or the nearest).
-    static func area(for window: CGRect) -> ScreenArea? {
-        let all = areas()
+    static func area(for window: CGRect, in given: [ScreenArea]? = nil) -> ScreenArea? {
+        let all = given ?? areas()
         let centre = CGPoint(x: window.midX, y: window.midY)
         if let area = all.first(where: { $0.frame.contains(centre) }) { return area }
+        // Mostly off-screen (as a tucked-away PiP is): the display it's still partly on.
+        func overlap(_ a: ScreenArea) -> CGFloat {
+            let r = a.frame.intersection(window)
+            return r.isNull ? 0 : r.width * r.height
+        }
+        if let area = all.max(by: { overlap($0) < overlap($1) }), overlap(area) > 0 { return area }
         return all.min { distance($0.frame, centre) < distance($1.frame, centre) }
     }
 
     private static func distance(_ r: CGRect, _ p: CGPoint) -> CGFloat {
         hypot(max(r.minX - p.x, 0, p.x - r.maxX), max(r.minY - p.y, 0, p.y - r.maxY))
+    }
+}
+
+enum StageManager {
+    /// Whether Stage Manager is on. It keeps the left edge of each display for its strip of recent
+    /// apps, and straight away pushes back out a small window moved there, or one left mostly off the
+    /// left edge, so a window can't be tucked away at the left while it's on.
+    static var isOn: Bool {
+        let domain = "com.apple.WindowManager" as CFString
+        CFPreferencesAppSynchronize(domain)  // it can be switched on and off at any time
+        return CFPreferencesGetAppBooleanValue("GloballyEnabled" as CFString, domain, nil)
     }
 }
 

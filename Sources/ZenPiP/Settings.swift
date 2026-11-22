@@ -13,6 +13,7 @@ struct Settings {
 
     var edgeMargin: CGFloat = 12   // gap kept from the screen edges, in points
     var followPointer = true       // move the pointer along with the window
+    var stash = true               // tuck the window away when pushed or flicked past a side
     var invert = false             // flip the direction if the window moves against your fingers
     var debug = false              // log every gesture
 
@@ -22,6 +23,7 @@ struct Settings {
         var s = Settings()
         if d.object(forKey: "edgeMargin") != nil { s.edgeMargin = CGFloat(min(200, max(0, d.double(forKey: "edgeMargin")))) }
         if d.object(forKey: "followPointer") != nil { s.followPointer = d.bool(forKey: "followPointer") }
+        if d.object(forKey: "stash") != nil { s.stash = d.bool(forKey: "stash") }
         s.invert = d.bool(forKey: "invert")
         s.debug = d.bool(forKey: "debug")
 

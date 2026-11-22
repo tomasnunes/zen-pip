@@ -25,6 +25,9 @@ If you try it in a browser marked 🟡, please open an issue to say how it went.
 | Click and drag it, letting go while still moving (mouse or trackpad click) | Is thrown to that side or corner in the same way |
 | Click and drag it slowly | Stays where you put it, snapping onto a nearby edge |
 | Push or drag it past an edge | Resists, then slides back on screen |
+| Push it well past the left or right edge, or flick it again towards the side it's resting on | Tucks away off-screen and keeps playing, leaving a slim glass tab with an arrow at the edge (with Stage Manager on, at the right edge only) |
+| Drag the tab, or swipe on it with two fingers, up or down | Moves it along the edge |
+| Click the tab, or drag or swipe it inwards | Slides the video back out |
 | Swipe on it while it's flying | Catches it |
 | Switch between a full-screen app and a normal desktop | Follows the bottom edge: the very bottom in full screen, just above the Dock on a desktop |
 
@@ -33,6 +36,7 @@ With the recommended Zen settings you also get:
 - **Automatic PiP:** a playing video pops out when you switch tabs, swipe to another desktop or minimise Zen, and pops back in when you return.
 - **Glass buttons:** the close, minimise and back-to-tab buttons in the PiP window become translucent, macOS-style glass circles.
 - **No floating PiP button on videos:** it only gets in the way once PiP opens by itself. ⌥⌘⇧] still toggles PiP.
+- **Optional fade-in:** turn on Zen's see-through mode and a new PiP fades in once its video has had a moment to get going, instead of showing a frozen frame while it catches up (as it does after swiping to another desktop). It appears about half a second later.
 
 Everything else stays as it was. Normal scrolling and clicking anywhere else, mouse wheels, and ⌘-dragging the PiP (Zen's own snap-to-corner, which comes from Firefox) all work as before.
 
@@ -62,7 +66,7 @@ Arc's PiP was one of its nicest details: you could push the video aside with a f
 
 ### Set up Zen
 
-These steps change Zen's own settings and add the stylesheet for the glass buttons.
+These steps change Zen's own settings and add the stylesheet for the glass buttons (and the optional fade-in).
 
 1. In Zen, open `about:support` and, next to **Profile Folder**, click **Show in Finder**.
 2. Copy [`zen/user.js`](zen/user.js) into that folder. If there's already a `user.js`, add the lines from ours to it.
@@ -77,6 +81,7 @@ These steps change Zen's own settings and add the stylesheet for the glass butto
 | `media.videocontrols.picture-in-picture.enable-when-switching-tabs.enabled` | `true` | PiP when you switch tabs |
 | `media.videocontrols.picture-in-picture.enable-when-occluded.enabled` | `true` | PiP when Zen's window is hidden (another desktop, minimised) |
 | `media.videocontrols.picture-in-picture.video-toggle.enabled` | `false` | Hides the PiP button drawn on videos (optional) |
+| `media.videocontrols.picture-in-picture.seethrough-mode.enabled` | `true` | Lets a new PiP fade in, with the zen-pip stylesheet (optional) |
 | `toolkit.legacyUserProfileCustomizations.stylesheets` | `true` | Lets Zen load `chrome/userChrome.css` (restart Zen after changing it) |
 
 </details>
@@ -90,6 +95,7 @@ ZenPiP reads its settings whenever a gesture lands on a PiP window, so changes a
 ```bash
 defaults write local.zenpip edgeMargin -float 12       # gap kept from the screen edges, in points
 defaults write local.zenpip followPointer -bool false  # leave the pointer alone
+defaults write local.zenpip stash -bool false          # never tuck the window away at a side
 defaults write local.zenpip invert -bool true          # if the window moves against your fingers
 defaults write local.zenpip debug -bool true           # log every gesture (for troubleshooting)
 ```
@@ -117,6 +123,7 @@ ZenPiP is a small background app: about 1,400 lines of Swift, including its self
 3. **It moves the window.** While your fingers move, ZenPiP moves the PiP window the same distance through the Accessibility interface, the same way window managers like Rectangle do, and moves the pointer with it.
 4. **It throws.** When you let go, it measures how fast you were moving. Fast enough means a throw: it works out which side or corner you were aiming at and carries the window there with a spring, which overshoots a little before settling. Click-and-drag works the same way: the browser does the drag, and ZenPiP measures your speed when you let go.
 5. **It knows where the Dock is.** It asks macOS whether the current space is a full-screen app, where the Dock is hidden, or a normal desktop, and keeps the PiP in the right area when you switch.
+6. **It tucks the window away.** macOS never lets an app move another app's window fully off-screen, so a tucked-away PiP shrinks and parks with a sliver left on screen, and ZenPiP covers the sliver with a glass tab of its own. If macOS moves the window back on screen (it sometimes does when you switch spaces), ZenPiP waits until macOS has finished moving it and tucks it away again.
 
 The Zen side is just Zen's own settings and a stylesheet. For the details, including the physics, edge cases and performance, see [docs/how-it-works.md](docs/how-it-works.md).
 
@@ -127,6 +134,7 @@ Zen's official mods can only change how Zen looks (they're CSS), and moving a wi
 ## Privacy and permissions
 
 - **Accessibility permission** is used only to see trackpad scroll and mouse button events, to read the title of always-on-top browser windows (to recognise PiP windows), and to move PiP windows and the pointer.
+- **Core Audio** is asked, while a PiP is tucked away, whether the browser is playing sound, so the tab can turn grey when the video is paused (macOS 14.2 or later; on earlier versions the tab always shows the video). This needs no permission.
 - **No network access** and **no data collection.** Nothing is stored except the settings you set and a log at `~/Library/Logs/ZenPiP.log`, which only records gestures when `debug` is on.
 - **A few undocumented macOS functions** are used, the same ones most window managers use. They're listed in [Sources/ZenPiP/PrivateAPI.swift](Sources/ZenPiP/PrivateAPI.swift). If a future macOS removes one, ZenPiP loses that feature instead of breaking.
 - The whole app is in [`Sources/ZenPiP`](Sources/ZenPiP). Please read it before giving it Accessibility permission, as you should with any app that asks for it.
@@ -146,6 +154,9 @@ Then, in **Privacy & Security → Accessibility**, select ZenPiP, click **minus 
 - **Swipes on the PiP aren't picked up.** Turn on `debug` (see [Settings](#settings)), swipe on the PiP, and check the log. It says when a PiP is under the pointer but another window is covering it.
 - **It moves the opposite way to your fingers.** `defaults write local.zenpip invert -bool true`.
 - **The glass buttons don't show.** Check that `toolkit.legacyUserProfileCustomizations.stylesheets` is `true` in `about:config` and that `userChrome.css` is in the profile's `chrome` folder, then restart Zen.
+- **The PiP disappears for a moment when you switch desktops.** macOS hides windows that show on every desktop while it animates the switch, and shows them again when it's done. ZenPiP can't change that (Safari's PiP is macOS's own, which is why it stays put).
+- **"Back to tab" leaves the video in PiP.** That happens in Zen when another tab is selected: Zen closes the PiP before it has switched tabs, and its PiP-when-switching-tabs setting opens a new one. Selecting the video's tab first works.
+- **It won't tuck away at the left edge.** Stage Manager keeps the left edge for its strip of recent apps and pushes small windows straight back out from there, so with Stage Manager on, a push to the left just lands at the edge. The right edge works as usual.
 - **PiP doesn't open when switching tabs or desktops.** Check the two `enable-when-…` settings. Zen also skips this for muted tabs and for videos you closed the PiP of yourself.
 
 ## Uninstall
@@ -161,10 +172,12 @@ Then remove ZenPiP from the Accessibility list. To undo the Zen side too, remove
 ```
 Sources/ZenPiP/      the app (Swift)
   main.swift           start-up
-  Engine*.swift        gestures, throws, spaces and animation
+  Engine*.swift        gestures, throws, stashing, spaces and animation
+  Stash.swift          stashing rules and the edge tab
   Physics.swift        movement maths: rubber band, throws, spring
   Windows.swift        finding PiP windows; Accessibility helpers
-  Screens.swift        displays, the Dock and full-screen spaces
+  Screens.swift        displays, the Dock, full-screen spaces and Stage Manager
+  Audio.swift          whether the browser is playing sound (for the stash tab's look)
   WindowMover.swift    moving the PiP window
   Pointer.swift        moving the mouse pointer
   Settings.swift       settings

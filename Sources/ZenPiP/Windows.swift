@@ -132,6 +132,16 @@ enum AX {
         return CGRect(origin: origin, size: extent)
     }
 
+    static func setPosition(_ element: AXUIElement, _ point: CGPoint) {
+        var p = point
+        if let value = AXValueCreate(.cgPoint, &p) { AXUIElementSetAttributeValue(element, kAXPositionAttribute as CFString, value) }
+    }
+
+    static func setSize(_ element: AXUIElement, _ size: CGSize) {
+        var s = size
+        if let value = AXValueCreate(.cgSize, &s) { AXUIElementSetAttributeValue(element, kAXSizeAttribute as CFString, value) }
+    }
+
     static func string(_ element: AXUIElement, _ attribute: String) -> String? {
         var value: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, attribute as CFString, &value) == .success else { return nil }

@@ -9,6 +9,7 @@ import AppKit
 /// - Engine+Trackpad.swift: two-finger swipes and flicks
 /// - Engine+Mouse.swift: click-and-drag, click-and-throw
 /// - Engine+Spaces.swift: following the bottom edge between full-screen spaces and desktops
+/// - Engine+Stash.swift: tucking the window away at a side, with a tab to bring it back
 /// - Engine+Animation.swift: the spring that carries a window to where it's going
 final class Engine {
     /// A confirmed PiP window.
@@ -37,6 +38,8 @@ final class Engine {
         var vel: CGVector
         var pointer: PointerMode
         let started: CFTimeInterval
+        var onArrive: (() -> Void)?  // runs once the window gets there (not if it's caught first)
+        var arriveWhen: ((CGPoint) -> Bool)?  // counts as arrived as soon as this is true
     }
 
     // Setup
@@ -66,6 +69,7 @@ final class Engine {
     var samples: [Physics.Sample] = []
     var pointerOrigin: CGPoint?
     var pointerOffset = CGVector.zero
+    var gestureStart = CGPoint.zero        // where the window was when the swipe began
 
     // Mouse
     var pressed: (id: CGWindowID, pid: pid_t, frame: CGRect)?  // a PiP the button went down on
@@ -75,8 +79,28 @@ final class Engine {
 
     // Spaces
     var settledMode: [String: Bool] = [:]  // full screen or not, per display, after the last check
+    var modeBeforeSwitch: [String: Bool] = [:]  // the same, as it was when the latest switch began
     var pendingSpaceCheck = false
     var spaceMovesLeft = 0
+
+    // Stashing
+    var stashed: Stashed?
+    let stashTab = StashTab()
+    var stashWatch: Timer?
+    var lastSlowStashCheck: CFTimeInterval = 0
+    var parkGeneration = 0  // so only the latest park waits for macOS to place the window
+    var parkFailures = 0    // parks undone straight away, with no space switch to explain it
+    var lastParkFailure: CGRect?  // where macOS put the window back the last time
+    var stashBlockedUntil: [StashSide: CFTimeInterval] = [:]
+    var tabSwipe: TabSwipe?
+    var lastSpaceChange: CFTimeInterval = 0
+    var tabDragging = false
+    var growTimer: Timer?
+    var growTarget: CGRect?  // the full-size frame a returning window is growing into
+    var fullSizes: [CGWindowID: CGSize] = [:]  // the size each window last came back to, so it doesn't drift
+    var lastFullSize: CGSize?                  // for a PiP Zen reopened where a stashed one was
+    var spaceFrames: [CGWindowID: (frame: CGRect, since: CFTimeInterval)] = [:]  // where each window is after a space switch, and since when
+    var spaceLooksLeft = 0
 
     // Animation
     var spring: Spring?
@@ -156,10 +180,12 @@ final class Engine {
 
         // If the permission is taken away while the tap is live, input can stall. Quit instead and let
         // launchd start ZenPiP again, which then waits for permission.
-        let watchdog = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { _ in
-            guard !AXIsProcessTrusted() else { return }
-            Log.write("Accessibility permission was removed; restarting")
-            exit(1)
+        let watchdog = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
+            guard AXIsProcessTrusted() else {
+                Log.write("Accessibility permission was removed; restarting")
+                exit(1)
+            }
+            self?.rescueStrandedPip()
         }
         watchdog.tolerance = 1
         Log.write("Ready")
@@ -173,10 +199,11 @@ final class Engine {
         switch type {
         case .tapDisabledByTimeout, .tapDisabledByUserInput:
             // macOS paused the tap and events were missed, so a swipe or click in progress is over.
-            if gestureOurs { release(at: ProcessInfo.processInfo.systemUptime * 1000) }
+            if gestureOurs && tabSwipe == nil { release(at: ProcessInfo.processInfo.systemUptime * 1000) }
             gestureDecided = false
             gestureOurs = false
             momentumOurs = false
+            tabSwipe = nil
             pressed = nil
             interrupted = nil
             buttonDown = false
@@ -276,9 +303,16 @@ final class Engine {
 
     /// The window being moved disappeared (closed, or the browser quit).
     func windowGone(_ window: AXUIElement) {
+        // Forget its Accessibility element. If the window is in fact still there (Accessibility lost
+        // track of it), a fresh one is looked up next time, and a stashed one left as a sliver is
+        // tucked away again by `rescueStrandedPip`.
+        for (id, ax) in pipByWindow where CFEqual(ax, window) {
+            pipByWindow[id] = nil
+            if WindowList.frame(of: id) == nil { fullSizes[id] = nil }
+        }
+        if let entry = stashed, CFEqual(entry.ax, window) { clearStash() }
         guard let tg = target, CFEqual(tg.ax, window) else { return }
         debug("PiP window \(tg.id) went away")
-        pipByWindow[tg.id] = nil
         // A swipe in progress stays swallowed (with nothing left to move), so it doesn't
         // suddenly scroll whatever was underneath.
         target = nil
