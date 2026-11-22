@@ -34,6 +34,7 @@ extension Engine {
     struct TabSwipe {
         enum Axis { case vertical, inwards, done }
         var axis: Axis?
+        var moved = CGVector.zero  // until the axis is decided
         var inwards: CGFloat = 0
         var pointer: CGPoint
         var tabY: CGFloat
@@ -268,10 +269,18 @@ extension Engine {
 
     /// Up and down moves the tab (and the pointer with it, unless the pointer is set not to follow);
     /// inwards brings the window back.
-    func followTabSwipe(_ d: CGVector) {
+    func followTabSwipe(_ delta: CGVector) {
         guard var swipe = tabSwipe, let entry = stashed else { return }
+        var d = delta
         if swipe.axis == nil {
-            guard hypot(d.dx, d.dy) >= 1.5 else { return }
+            // A slow swipe comes in small steps: decide on the movement so far, then apply all of it.
+            swipe.moved.dx += delta.dx
+            swipe.moved.dy += delta.dy
+            d = swipe.moved
+            guard hypot(d.dx, d.dy) >= 1.5 else {
+                tabSwipe = swipe
+                return
+            }
             let inwards = entry.side == .right ? -d.dx : d.dx
             swipe.axis = inwards > abs(d.dy) ? .inwards : .vertical
         }
