@@ -265,7 +265,8 @@ extension Engine {
         return true
     }
 
-    /// Up and down moves the tab (and the pointer with it); inwards brings the window back.
+    /// Up and down moves the tab (and the pointer with it, unless the pointer is set not to follow);
+    /// inwards brings the window back.
     func followTabSwipe(_ d: CGVector) {
         guard var swipe = tabSwipe, let entry = stashed else { return }
         if swipe.axis == nil {
@@ -282,7 +283,9 @@ extension Engine {
             }
         case .vertical:
             moveStash(by: d.dy)
-            Pointer.move(to: CGPoint(x: swipe.pointer.x, y: swipe.pointer.y + stashTab.frame.minY - swipe.tabY), within: entry.display)
+            if settings.followPointer {
+                Pointer.move(to: CGPoint(x: swipe.pointer.x, y: swipe.pointer.y + stashTab.frame.minY - swipe.tabY), within: entry.display)
+            }
         default:
             break
         }
