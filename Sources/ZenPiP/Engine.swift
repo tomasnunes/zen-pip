@@ -181,7 +181,7 @@ final class Engine {
         // If the permission is taken away while the tap is live, input can stall. Quit instead and let
         // launchd start ZenPiP again, which then waits for permission.
         let watchdog = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
-            guard AXIsProcessTrusted() else {
+            guard Self.stillTrusted() else {
                 Log.write("Accessibility permission was removed; restarting")
                 exit(1)
             }
@@ -189,6 +189,24 @@ final class Engine {
         }
         watchdog.tolerance = 1
         Log.write("Ready")
+    }
+
+    /// Whether ZenPiP still has Accessibility permission. `AXIsProcessTrusted()` keeps saying yes
+    /// when ZenPiP is removed from the list (rather than switched off), so this also asks for a new
+    /// event tap, which macOS refuses once the permission is gone. The test tap watches only
+    /// other-button drags and is closed at once, so it never holds up input.
+    private static func stillTrusted() -> Bool {
+        guard AXIsProcessTrusted() else { return false }
+        guard let probe = CGEvent.tapCreate(
+            tap: .cgSessionEventTap,
+            place: .tailAppendEventTap,
+            options: .defaultTap,
+            eventsOfInterest: 1 << CGEventType.otherMouseDragged.rawValue,
+            callback: { _, _, event, _ in Unmanaged.passUnretained(event) },
+            userInfo: nil
+        ) else { return false }
+        CFMachPortInvalidate(probe)
+        return true
     }
 
     // MARK: - The event tap
