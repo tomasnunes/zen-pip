@@ -260,7 +260,8 @@ extension Engine {
     /// Starts handling a two-finger swipe if it began on the tab. The whole swipe is ZenPiP's, so
     /// none of it scrolls the page underneath.
     func beginTabSwipe(at point: CGPoint) -> Bool {
-        guard let entry = stashed, entry.phase == .parked, stashTab.isVisible, stashTab.frame.contains(point) else { return false }
+        guard let entry = stashed, entry.phase == .parked, stashTab.isVisible, stashTab.frame.contains(point),
+              WindowList.topmost(at: point)?.id == stashTab.windowNumber else { return false }  // not under a menu, say
         tabSwipe = TabSwipe(pointer: point, tabY: stashTab.frame.minY)
         return true
     }
