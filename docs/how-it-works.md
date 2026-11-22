@@ -186,6 +186,7 @@ being moved by macOS, and moving it then would send it somewhere odd or leave it
 - **Idle cost:** when nothing is happening it uses next to no CPU. Its only timer is a check every 2 s that it still has permission and that no PiP is stranded at an edge (see [Keeping it parked](#keeping-it-parked)), and that check can drift by a second. While a PiP is tucked away, the check on it 20 times a second costs about 0.03 ms each time. It uses about 9 MB of memory.
 - **Busy browsers:** every Accessibility request gives up after 0.15 s, so a browser busy with a hundred tabs can't stall scrolling elsewhere.
 - **Permission removed:** if Accessibility permission is taken away while ZenPiP is running, it exits (an event tap left behind can stall input), and launchd restarts it to wait for permission again.
+- **Stopped while a PiP is tucked away:** when ZenPiP is stopped (uninstalled, or replaced by a new build), it first puts a tucked-away PiP back at its edge, since nothing would be left to bring it back.
 - **Zen's accessibility engine:** Firefox-based browsers start a heavy accessibility engine when an assistive app explores their web content. ZenPiP only asks for window titles and positions, which the system answers without starting that engine. You can confirm it in Zen at `about:support` → Accessibility → Activated: false.
 - **One copy only:** a second ZenPiP exits straight away, so two can't fight over the window.
 

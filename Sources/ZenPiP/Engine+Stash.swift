@@ -583,6 +583,14 @@ extension Engine {
         checkSize(entry, until: CACurrentMediaTime() + 0.8)  // Zen may land an older size late, as after a grow
     }
 
+    /// When ZenPiP is stopped (uninstalled, or replaced by a new build), a tucked-away window is put
+    /// back first, since nothing would be left to bring it back.
+    func restoreBeforeQuitting() {
+        guard let entry = stashed else { return }
+        restore(entry)
+        mover.finish()
+    }
+
     func clearStash() {
         stashed = nil
         growTimer?.invalidate()

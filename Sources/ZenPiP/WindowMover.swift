@@ -49,6 +49,11 @@ final class WindowMover {
         startDraining()
     }
 
+    /// Waits until every change asked for so far has been applied.
+    func finish() {
+        queue.sync {}
+    }
+
     /// Call with the lock held; releases it.
     private func startDraining() {
         let start = !draining

@@ -32,14 +32,14 @@ extension Engine {
                 momentumOurs = false
                 gestureDecided = true
                 tabSwipe = nil
-                gestureOurs = beginTabSwipe(at: e.location) || beginGesture(e)
+                gestureOurs = beginSwipe(e)
             }
             return gestureOurs
         case Phase.changed:
             if stale && !gestureDecided {
                 gestureDecided = true
                 tabSwipe = nil
-                gestureOurs = beginTabSwipe(at: e.location) || beginGesture(e)
+                gestureOurs = beginSwipe(e)
             }
             guard gestureOurs, let ns = NSEvent(cgEvent: e) else { return false }
             if tabSwipe != nil {
@@ -67,10 +67,15 @@ extension Engine {
         }
     }
 
-    /// Decides whether a new swipe is on a PiP window, and gets ready to move it.
-    private func beginGesture(_ e: CGEvent) -> Bool {
+    /// Decides whether a new swipe is ZenPiP's: on a stash tab, or on a PiP window.
+    private func beginSwipe(_ e: CGEvent) -> Bool {
         // ⌃, ⌘ and ⌥ + scroll keep their usual meaning (for example, accessibility zoom).
         if !e.flags.intersection([.maskControl, .maskCommand, .maskAlternate]).isEmpty { return false }
+        return beginTabSwipe(at: e.location) || beginGesture(e)
+    }
+
+    /// Decides whether a new swipe is on a PiP window, and gets ready to move it.
+    private func beginGesture(_ e: CGEvent) -> Bool {
         settings = Settings.load()  // before looking, so the debug log can say why a swipe wasn't picked up
         guard var pip = findPip(at: e.location) else { return false }
         if let entry = stashed, entry.id == pip.id, entry.phase == .parked {
