@@ -146,7 +146,17 @@ git pull            # or download the new ZIP
 ./scripts/install.sh
 ```
 
-Then, in **Privacy & Security → Accessibility**, select ZenPiP, click **minus (−)**, and add it again with **plus (+)**. The app is signed locally ("ad hoc") rather than with a paid Apple developer certificate, so macOS ties the permission to each exact build. Switching the old entry off and on isn't enough.
+Then, in **Privacy & Security → Accessibility**, select ZenPiP, click **minus (−)**, and add it again with **plus (+)**. The app is signed locally ("ad hoc") rather than with a paid Apple developer certificate, so macOS ties the permission to each exact build. Switching the old entry off and on isn't enough. To skip this step, see the next section.
+
+### Keep the permission across updates
+
+Make a signing certificate of your own once, and the build script uses it, so every new build keeps the Accessibility permission:
+
+1. Open **Keychain Access** and choose **Keychain Access → Certificate Assistant → Create a Certificate…**
+2. Name it `ZenPiP Local Signing`, set **Identity Type** to **Self-Signed Root** and **Certificate Type** to **Code Signing**, and click **Create**.
+3. Run `./scripts/install.sh`. If macOS asks whether `codesign` may use the key, click **Always Allow**. Then remove ZenPiP from the Accessibility list and add it again, one last time.
+
+The certificate stays in your keychain and only signs your own builds. If it's ever deleted, builds go back to "ad hoc" signing and need the permission granted again after each update.
 
 ## Troubleshooting
 

@@ -201,7 +201,7 @@ These are looked up when ZenPiP starts (`PrivateAPI.swift`), so a macOS without 
 
 ## Why the permission resets after a rebuild
 
-macOS ties Accessibility permission to the app's code signature. ZenPiP is signed "ad hoc" (`codesign --sign -`), which needs no Apple developer account but gives every build a different signature. So after rebuilding, the old permission entry no longer matches the new app: remove it and add the app again. A build signed with an Apple Developer ID would keep its permission across updates.
+macOS ties Accessibility permission to the app's code signature. By default ZenPiP is signed "ad hoc" (`codesign --sign -`), which needs no Apple developer account but gives every build a different signature. So after rebuilding, the old permission entry no longer matches the new app: remove it and add the app again. With a self-signed "ZenPiP Local Signing" certificate in your keychain (see the README), the build script signs with that instead; the signature's requirement is then the certificate and the app's identifier, which every build shares, so the permission carries over.
 
 ## Known limitations
 
