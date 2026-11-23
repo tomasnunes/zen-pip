@@ -10,13 +10,19 @@ fi
 
 APP=build/ZenPiP.app
 rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
+cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 # Built for macOS 13 or later, for this Mac's processor (Apple silicon or Intel).
 xcrun swiftc -O -swift-version 5 -module-name ZenPiP -target "$(uname -m)-apple-macos13" \
   -framework AppKit -framework ApplicationServices -framework QuartzCore -framework CoreAudio \
   -o "$APP/Contents/MacOS/ZenPiP" Sources/ZenPiP/*.swift
-# Signed "ad hoc" (no developer certificate needed). macOS ties the Accessibility permission to
-# this exact signature, which is why a rebuilt app needs the permission granted again.
-codesign --force --sign - --identifier local.zenpip "$APP"
+# macOS ties the Accessibility permission to the app's signature. Signed with your own
+# "ZenPiP Local Signing" certificate (see README.md, "Keep the permission across updates"), every
+# build keeps the permission. Without one it's signed "ad hoc" (no certificate needed), which ties
+# the permission to this exact build, so a rebuilt app needs it granted again.
+IDENTITY="ZenPiP Local Signing"
+identities=$(security find-identity -p codesigning 2>/dev/null || true)
+[[ $identities == *"\"$IDENTITY\""* ]] || IDENTITY="-"
+codesign --force --sign "$IDENTITY" --identifier local.zenpip "$APP"
 echo "Built $APP"

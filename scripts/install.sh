@@ -29,9 +29,21 @@ ZenPiP is installed and running.
 Next, give it Accessibility permission. macOS may show a prompt; click Open System Settings.
 In Privacy & Security > Accessibility, switch ZenPiP on. If it isn't listed, click + and choose
 ~/Applications/ZenPiP.app (press Cmd-Shift-G and type ~/Applications).
+MSG
+signature=$(codesign -dvv "$APP" 2>&1 || true)
+if [[ $signature == *"Authority=ZenPiP Local Signing"* ]]; then
+  cat <<'MSG'
+
+Signed with your ZenPiP Local Signing certificate, so updates keep the permission. Only the first
+build signed this way needs the old ZenPiP entry removed with minus (-) and added again with plus (+).
+MSG
+else
+  cat <<'MSG'
 
 Updating from an earlier build? Remove the old ZenPiP entry with the minus (-) button first,
 then add it again with plus (+). macOS ties the permission to each exact build, so switching
-the old entry off and on is not enough.
+the old entry off and on is not enough. To skip this on future updates, see "Keep the permission
+across updates" in README.md.
 MSG
+fi
 open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility" 2>/dev/null || true
