@@ -20,4 +20,14 @@ let app = NSApplication.shared
 app.setActivationPolicy(.accessory)  // no Dock icon, no menu bar
 let engine = Engine()
 engine.start()
+
+// Stopped by launchd (uninstalled, or replaced by a new build): put a tucked-away PiP back first.
+signal(SIGTERM, SIG_IGN)
+let stop = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)
+stop.setEventHandler {
+    engine.restoreBeforeQuitting()
+    exit(0)
+}
+stop.resume()
+
 app.run()

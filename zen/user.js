@@ -19,3 +19,8 @@ user_pref("media.videocontrols.picture-in-picture.video-toggle.enabled", false);
 
 // Let Zen load chrome/userChrome.css from your profile (the glass PiP buttons in zen/userChrome.css).
 user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);
+
+// Optional: see-through mode lets the PiP window be transparent, which zen/userChrome.css uses to fade
+// a new PiP in once its video has had a moment to get going, instead of showing a frozen frame while
+// it catches up. A new PiP then appears about half a second later. Remove the // to turn it on.
+// user_pref("media.videocontrols.picture-in-picture.seethrough-mode.enabled", true);

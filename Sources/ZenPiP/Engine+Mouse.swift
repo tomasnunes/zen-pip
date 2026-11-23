@@ -10,6 +10,16 @@ extension Engine {
         interrupted = nil
         guard let w = WindowList.topmost(at: point), isCandidate(w) else { return }
         var frame = w.frame
+        if let entry = stashed, entry.id == w.id, entry.phase == .parked {
+            unstash()  // a sliver of a stashed window: bring it back
+            return
+        }
+        if target?.id == w.id, spring?.onArrive != nil || growTimer != nil {
+            // Mid-stash or mid-return: finish the move straight away.
+            finishSpring()
+            finishGrowing()
+            return
+        }
         if let s = spring, target?.id == w.id {
             // Clicked (or grabbed) in flight: remember where it was going, in case this is just a click.
             interrupted = (w.id, s.dest)
@@ -71,7 +81,12 @@ extension Engine {
             }
             self.debug("Drag released: \(samples.count) pointer samples, \(String(format: "%.2f", hypot(v.dx, v.dy))) pt/ms")
 
-            if hypot(v.dx, v.dy) >= Physics.flingSpeed {
+            let isThrow = hypot(v.dx, v.dy) >= Physics.flingSpeed
+            if let side = Stash.side(releasedAt: tg.pos, startedAt: p.frame.origin, velocity: v, isThrow: isThrow,
+                                     pushedPast: tg.size.width * Stash.dragOffScreen + self.settings.edgeMargin,
+                                     bounds: tg.bounds), self.canStash(side) {
+                self.stash(side, velocity: v)
+            } else if isThrow {
                 let dest = Physics.throwDestination(from: tg.pos, velocity: v, bounds: tg.bounds)
                 self.debug(String(format: "Mouse throw to %.0f, %.0f", dest.x, dest.y))
                 self.startSpring(to: dest, velocity: Physics.throwVelocity(v, at: tg.pos, bounds: tg.bounds), pointer: .stay)
