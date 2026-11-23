@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!-- Starts ZenPiP at login and restarts it if it stops unexpectedly.
+<!-- Starts ZenPiP at login and restarts it only if it crashes, so quitting it keeps it quit.
+     AssociatedBundleIdentifiers links it to ZenPiP.app. To stop it starting at login, switch ZenPiP off
+     in System Settings > General > Login Items & Extensions > Allow in the Background.
      scripts/install.sh fills in __HOME__ and copies this to ~/Library/LaunchAgents/local.zenpip.plist. -->
 <plist version="1.0">
 <dict>
@@ -14,9 +16,13 @@
 	<true/>
 	<key>KeepAlive</key>
 	<dict>
-		<key>SuccessfulExit</key>
-		<false/>
+		<key>Crashed</key>
+		<true/>
 	</dict>
+	<key>AssociatedBundleIdentifiers</key>
+	<array>
+		<string>local.zenpip</string>
+	</array>
 	<key>ProcessType</key>
 	<string>Interactive</string>
 	<key>StandardOutPath</key>

@@ -72,7 +72,7 @@ Three steps. Everything else in this README is optional.
    ./scripts/install.sh
    ```
 
-   This builds the app, puts it in `~/Applications/ZenPiP.app`, and sets it to start at login. It has no window or Dock icon; it just runs in the background.
+   This builds the app, puts it in `~/Applications/ZenPiP.app`, and sets it to start at login. It has no window or Dock icon; it runs in the background, and sleeps while no supported browser is open.
 
 3. **Give it Accessibility permission.** macOS may show a prompt; click **Open System Settings**. In **Privacy & Security → Accessibility**, switch **ZenPiP** on. If it isn't in the list, click **+** and choose `~/Applications/ZenPiP.app` (press ⌘⇧G and type `~/Applications`). ZenPiP starts working within a couple of seconds.
 
@@ -183,6 +183,12 @@ git pull            # or download the new ZIP
 ```
 
 Then, in **Privacy & Security → Accessibility**, select ZenPiP, click **minus (−)**, and add it again with **plus (+)**. Switching the old entry off and on isn't enough. With [your own signing certificate](#keep-the-permission-across-updates), you can skip this step.
+
+## Quit or pause it
+
+- **Quit it:** in Activity Monitor, select ZenPiP and click the ✕ button. It stays quit until you log in again or open `~/Applications/ZenPiP.app`.
+- **Stop it starting at login:** in System Settings → General → Login Items & Extensions, switch ZenPiP off under **Allow in the Background**. Switch it on again to bring it back.
+- **Remove it:** see [Uninstall](#uninstall).
 
 ## Troubleshooting
 
