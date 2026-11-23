@@ -1,3 +1,5 @@
+<p align="center"><img src="Resources/AppIcon.svg" width="160" alt="ZenPiP icon: an ink ensō with a small red picture-in-picture window, showing a play arrow, over its lower right"></p>
+
 # zen-pip
 
 **The ultimate Picture-in-Picture for Zen Browser.** Flick the video into a corner, slide it around with two fingers, and it stays neatly out of your way, the way Arc's Picture-in-Picture did.
@@ -72,6 +74,10 @@ These steps change Zen's own settings and add the stylesheet for the glass butto
 2. Copy [`zen/user.js`](zen/user.js) into that folder. If there's already a `user.js`, add the lines from ours to it.
 3. Copy [`zen/userChrome.css`](zen/userChrome.css) into the `chrome` folder inside it (create the folder if it doesn't exist). If there's already a `userChrome.css`, add ours to the end of it.
 4. Quit and reopen Zen.
+
+<img src="zen/ZenIcon.svg" width="72" align="right" alt="Matching Zen icon: the same ink ensō on its own">
+
+**Optional: a matching icon for Zen.** [`zen/ZenIcon.icns`](zen/ZenIcon.icns) is the same ensō without the picture-in-picture window, so Zen and ZenPiP look like a pair. It's an unofficial icon, not Zen's own. To use it, open it in Preview and choose **Edit → Copy**. Then select Zen in Applications, choose **File → Get Info**, click the small icon at the top left of that window and choose **Edit → Paste**. To go back to Zen's own icon, click that small icon and press Delete. If a Zen update brings its own icon back, paste it again.
 
 <details>
 <summary>Prefer to change the settings by hand? Set these in <code>about:config</code> instead of using user.js.</summary>
@@ -194,9 +200,9 @@ Sources/ZenPiP/      the app (Swift)
   Log.swift            the log
   PrivateAPI.swift     the undocumented macOS functions, looked up safely
   SelfTest.swift       checks run by scripts/test.sh
-Resources/           Info.plist and the login item
+Resources/           Info.plist, the login item and the app icon (AppIcon.svg is its source)
 scripts/             build, test, install, uninstall
-zen/                 Zen settings (user.js) and the glass PiP buttons (userChrome.css)
+zen/                 Zen settings (user.js), the glass PiP buttons (userChrome.css) and a matching Zen icon
 docs/                how it works, in detail
 ```
 

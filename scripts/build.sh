@@ -10,8 +10,9 @@ fi
 
 APP=build/ZenPiP.app
 rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
+cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 # Built for macOS 13 or later, for this Mac's processor (Apple silicon or Intel).
 xcrun swiftc -O -swift-version 5 -module-name ZenPiP -target "$(uname -m)-apple-macos13" \
   -framework AppKit -framework ApplicationServices -framework QuartzCore -framework CoreAudio \
