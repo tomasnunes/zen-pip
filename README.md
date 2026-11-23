@@ -46,6 +46,14 @@ Everything else stays as it was. Normal scrolling and clicking anywhere else, mo
 
 Arc's PiP was one of its nicest details: you could push the video aside with a flick and it would land in a corner and stay on screen. Zen's PiP is a good video player, but the window only moves by click-dragging and happily disappears off the edge of the screen. zen-pip brings the Arc feel to Zen without modifying Zen itself.
 
+## About the icon
+
+<p align="center"><img src="zen/ZenIcon.svg" width="112" alt="The Zen icon: an ink ensō on warm paper">&nbsp;&nbsp;&nbsp;<img src="Resources/AppIcon.svg" width="112" alt="The ZenPiP icon: the same ensō with a red picture-in-picture window"></p>
+
+An ensō (円相, "circular form") is the best-known symbol of Zen Buddhism. Zen monks have painted it for centuries as part of their practice: one circle, in one brushstroke, with no going back to fix it. It stands for enlightenment and for emptiness, and it's said to show the painter's state of mind at that moment, so the uneven edge and the dry streak where the ink runs out are left in. Many are left slightly open, like the one above.
+
+The ZenPiP icon is an ensō with a picture-in-picture window resting on it. The same ensō on its own is included as an [optional icon for Zen](#give-zen-the-matching-icon), so the two look like a pair.
+
 ## Requirements
 
 - macOS 13 or later (it's built for 13 and up). Tested on macOS 27 with Zen 1.24, which is based on Firefox 160.
@@ -53,6 +61,8 @@ Arc's PiP was one of its nicest details: you could push the video aside with a f
 - A trackpad for the swipes. The click-and-drag throws also work with a mouse.
 
 ## Install
+
+Three steps. Everything else in this README is optional.
 
 1. **Get the code.** On GitHub, click **Code → Download ZIP** and unzip it, or clone the repository with git.
 2. **Build and install it.** In Terminal, go to the folder you downloaded and run the install script. For example:
@@ -66,18 +76,14 @@ Arc's PiP was one of its nicest details: you could push the video aside with a f
 
 3. **Give it Accessibility permission.** macOS may show a prompt; click **Open System Settings**. In **Privacy & Security → Accessibility**, switch **ZenPiP** on. If it isn't in the list, click **+** and choose `~/Applications/ZenPiP.app` (press ⌘⇧G and type `~/Applications`). ZenPiP starts working within a couple of seconds.
 
-### Set up Zen
+### Set up Zen (recommended)
 
-These steps change Zen's own settings and add the stylesheet for the glass buttons (and the optional fade-in).
+The gestures work without this. These steps add automatic PiP, the glass buttons and the optional fade-in, by changing Zen's own settings and adding a stylesheet.
 
 1. In Zen, open `about:support` and, next to **Profile Folder**, click **Show in Finder**.
 2. Copy [`zen/user.js`](zen/user.js) into that folder. If there's already a `user.js`, add the lines from ours to it.
 3. Copy [`zen/userChrome.css`](zen/userChrome.css) into the `chrome` folder inside it (create the folder if it doesn't exist). If there's already a `userChrome.css`, add ours to the end of it.
 4. Quit and reopen Zen.
-
-<img src="zen/ZenIcon.svg" width="72" align="right" alt="Matching Zen icon: the same ink ensō on its own">
-
-**Optional: a matching icon for Zen.** [`zen/ZenIcon.icns`](zen/ZenIcon.icns) is the same ensō without the picture-in-picture window, so Zen and ZenPiP look like a pair. It's an unofficial icon, not Zen's own. To use it, open it in Preview and choose **Edit → Copy**. Then select Zen in Applications, choose **File → Get Info**, click the small icon at the top left of that window and choose **Edit → Paste**. To go back to Zen's own icon, click that small icon and press Delete. If a Zen update brings its own icon back, paste it again.
 
 <details>
 <summary>Prefer to change the settings by hand? Set these in <code>about:config</code> instead of using user.js.</summary>
@@ -93,6 +99,30 @@ These steps change Zen's own settings and add the stylesheet for the glass butto
 </details>
 
 Why hide the on-video PiP button instead of moving it lower? Zen (like Firefox) fixes its position partway down the video, and nothing outside Zen's own code can change that.
+
+## Optional extras
+
+ZenPiP works fine without these.
+
+### Keep the permission across updates
+
+By default, every update means removing ZenPiP from the Accessibility list and adding it again (see [Updating](#updating)). That's because builds are signed "ad hoc", without a certificate, and macOS ties the permission to each exact build. A free certificate of your own, made once, lets every new build keep the permission:
+
+1. Open **Keychain Access** and choose **Keychain Access → Certificate Assistant → Create a Certificate…**
+2. Name it `ZenPiP Local Signing`, set **Identity Type** to **Self-Signed Root** and **Certificate Type** to **Code Signing**, and click **Create**.
+3. Run `./scripts/install.sh`. If macOS asks whether `codesign` may use the key, click **Always Allow**. Then remove ZenPiP from the Accessibility list and add it again, one last time.
+
+The certificate stays in your keychain and only signs your own builds. If it's ever deleted, builds go back to ad hoc signing.
+
+### Give Zen the matching icon
+
+[`zen/ZenIcon.icns`](zen/ZenIcon.icns) is the ensō from [About the icon](#about-the-icon), for Zen itself. It's an unofficial icon, not Zen's own.
+
+1. Open `zen/ZenIcon.icns` in Preview and choose **Edit → Copy**.
+2. In Finder, select **Zen** in Applications and choose **File → Get Info**.
+3. Click the small icon at the top left of that window and choose **Edit → Paste**. Finder may ask for your password.
+
+Zen's Dock icon changes the next time you open Zen. To go back to Zen's own icon, click that small icon and press Delete. If a Zen update brings its own icon back, paste it again.
 
 ## Settings
 
@@ -152,17 +182,7 @@ git pull            # or download the new ZIP
 ./scripts/install.sh
 ```
 
-Then, in **Privacy & Security → Accessibility**, select ZenPiP, click **minus (−)**, and add it again with **plus (+)**. The app is signed locally ("ad hoc") rather than with a paid Apple developer certificate, so macOS ties the permission to each exact build. Switching the old entry off and on isn't enough. To skip this step, see the next section.
-
-### Keep the permission across updates
-
-Make a signing certificate of your own once, and the build script uses it, so every new build keeps the Accessibility permission:
-
-1. Open **Keychain Access** and choose **Keychain Access → Certificate Assistant → Create a Certificate…**
-2. Name it `ZenPiP Local Signing`, set **Identity Type** to **Self-Signed Root** and **Certificate Type** to **Code Signing**, and click **Create**.
-3. Run `./scripts/install.sh`. If macOS asks whether `codesign` may use the key, click **Always Allow**. Then remove ZenPiP from the Accessibility list and add it again, one last time.
-
-The certificate stays in your keychain and only signs your own builds. If it's ever deleted, builds go back to "ad hoc" signing and need the permission granted again after each update.
+Then, in **Privacy & Security → Accessibility**, select ZenPiP, click **minus (−)**, and add it again with **plus (+)**. Switching the old entry off and on isn't enough. With [your own signing certificate](#keep-the-permission-across-updates), you can skip this step.
 
 ## Troubleshooting
 
@@ -181,7 +201,9 @@ The certificate stays in your keychain and only signs your own builds. If it's e
 ./scripts/uninstall.sh
 ```
 
-Then remove ZenPiP from the Accessibility list. To undo the Zen side too, remove the zen-pip lines from your profile's `user.js` and `chrome/userChrome.css`, then reset the four settings listed under [Set up Zen](#set-up-zen) in `about:config` (removing them from `user.js` alone leaves them set).
+Then remove ZenPiP from the Accessibility list. To undo the Zen side too, remove the zen-pip lines from your profile's `user.js` and `chrome/userChrome.css`, then reset the four settings listed under [Set up Zen](#set-up-zen-recommended) in `about:config` (removing them from `user.js` alone leaves them set).
+
+If you set up the optional extras: delete the `ZenPiP Local Signing` certificate in Keychain Access, and give Zen its own icon back by clicking the small icon in its Get Info window and pressing Delete.
 
 ## Project layout
 
