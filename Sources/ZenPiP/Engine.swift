@@ -206,7 +206,8 @@ final class Engine {
             userInfo: Unmanaged.passUnretained(self).toOpaque()
         ) else {
             Log.write("Could not start listening to the trackpad; retrying in 5 seconds")
-            DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in self?.installTap() }
+            // Go through updateListening so the retry is skipped if the browser has quit or a tap exists.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in self?.updateListening() }
             return
         }
         let source = CFMachPortCreateRunLoopSource(nil, tap, 0)
