@@ -44,6 +44,10 @@ final class Engine {
 
     // Setup
     var tap: CFMachPort?
+    var tapSource: CFRunLoopSource?
+    var watchdog: Timer?
+    var permissionWait: Timer?
+    var sleeping = false
     let mover = WindowMover()
     var settings = Settings.load()
     var appNapActivity: NSObjectProtocol?
@@ -128,25 +132,51 @@ final class Engine {
         if PrivateAPI.spaceType == nil { Log.write("Note: space detection is unavailable; full-screen spaces use the normal bottom edge") }
 
         let prompt = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
-        if AXIsProcessTrustedWithOptions(prompt) {
-            installTap()
-        } else {
-            Log.write("Waiting for Accessibility permission (System Settings > Privacy & Security > Accessibility > ZenPiP)")
-            let waiting = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] timer in
-                guard AXIsProcessTrusted() else { return }
-                timer.invalidate()
-                self?.installTap()
-            }
-            waiting.tolerance = 1
+        _ = AXIsProcessTrustedWithOptions(prompt)  // asks for the permission if it's missing
+        updateListening()
+    }
+
+    /// Listens to the trackpad only while a supported browser is open and ZenPiP has permission.
+    /// The rest of the time it sleeps: no event tap and no timers.
+    func updateListening() {
+        let browserOpen = NSWorkspace.shared.runningApplications.contains {
+            $0.bundleIdentifier.map(browserBundleIDs.contains) ?? false
         }
+        guard browserOpen else {
+            permissionWait?.invalidate()
+            permissionWait = nil
+            if tap != nil { removeTap() }
+            if !sleeping { Log.write("No supported browser open; sleeping until one opens") }
+            sleeping = true
+            return
+        }
+        sleeping = false
+        guard tap == nil, permissionWait == nil else { return }
+        if Self.stillTrusted() {
+            installTap()
+            return
+        }
+        Log.write("Waiting for Accessibility permission (System Settings > Privacy & Security > Accessibility > ZenPiP)")
+        let wait = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
+            guard let self, Self.stillTrusted() else { return }
+            self.permissionWait?.invalidate()
+            self.permissionWait = nil
+            self.updateListening()
+        }
+        wait.tolerance = 1
+        permissionWait = wait
     }
 
     private func observeSystem() {
         let workspace = NSWorkspace.shared.notificationCenter
-        workspace.addObserver(forName: NSWorkspace.didTerminateApplicationNotification, object: nil, queue: .main) { [weak self] _ in
+        workspace.addObserver(forName: NSWorkspace.didTerminateApplicationNotification, object: nil, queue: .main) { [weak self] note in
             self?.isBrowserByPid.removeAll()
             self?.pipByWindow.removeAll()
             self?.notPipUntil.removeAll()
+            if Self.isBrowser(note) { self?.updateListening() }
+        }
+        workspace.addObserver(forName: NSWorkspace.didLaunchApplicationNotification, object: nil, queue: .main) { [weak self] note in
+            if Self.isBrowser(note) { self?.updateListening() }
         }
         for name in [NSWorkspace.activeSpaceDidChangeNotification, NSWorkspace.didWakeNotification,
                      NSWorkspace.sessionDidBecomeActiveNotification] {
@@ -155,6 +185,11 @@ final class Engine {
         NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification,
                                                object: nil, queue: .main) { [weak self] _ in self?.scheduleSpaceCheck() }
         for area in Screens.areas() { settledMode[area.uuid ?? ""] = Spaces.isFullScreen(area) }
+    }
+
+    private static func isBrowser(_ note: Notification) -> Bool {
+        let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+        return app?.bundleIdentifier.map(browserBundleIDs.contains) ?? false
     }
 
     private func installTap() {
@@ -171,24 +206,56 @@ final class Engine {
             userInfo: Unmanaged.passUnretained(self).toOpaque()
         ) else {
             Log.write("Could not start listening to the trackpad; retrying in 5 seconds")
-            DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in self?.installTap() }
+            // Go through updateListening so the retry is skipped if the browser has quit or a tap exists.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in self?.updateListening() }
             return
         }
+        let source = CFMachPortCreateRunLoopSource(nil, tap, 0)
         self.tap = tap
-        CFRunLoopAddSource(CFRunLoopGetMain(), CFMachPortCreateRunLoopSource(nil, tap, 0), .commonModes)
+        tapSource = source
+        CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)
 
-        // If the permission is taken away while the tap is live, input can stall. Quit instead and let
-        // launchd start ZenPiP again, which then waits for permission.
-        let watchdog = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
+        // If the permission is taken away while the tap is live, input can stall, so drop the tap at
+        // once and wait for the permission to come back.
+        let check = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
+            guard let self else { return }
             guard Self.stillTrusted() else {
-                Log.write("Accessibility permission was removed; restarting")
-                exit(1)
+                Log.write("Accessibility permission was removed")
+                self.removeTap()
+                self.updateListening()
+                return
             }
-            self?.rescueStrandedPip()
+            self.rescueStrandedPip()
         }
-        watchdog.tolerance = 1
+        check.tolerance = 1
+        watchdog = check
         Log.write("Ready")
+    }
+
+    private func removeTap() {
+        watchdog?.invalidate()
+        watchdog = nil
+        guard let tap else { return }
+        CGEvent.tapEnable(tap: tap, enable: false)
+        if let tapSource { CFRunLoopRemoveSource(CFRunLoopGetMain(), tapSource, .commonModes) }
+        CFMachPortInvalidate(tap)
+        self.tap = nil
+        tapSource = nil
+        forgetInput()
+    }
+
+    /// Forgets a swipe or click in progress, after events were missed.
+    private func forgetInput() {
+        if gestureOurs && tabSwipe == nil { release(at: ProcessInfo.processInfo.systemUptime * 1000) }
+        gestureDecided = false
+        gestureOurs = false
+        momentumOurs = false
+        tabSwipe = nil
+        pressed = nil
+        interrupted = nil
+        buttonDown = false
+        dragPoints = []
     }
 
     /// Whether ZenPiP still has Accessibility permission. `AXIsProcessTrusted()` keeps saying yes
@@ -217,15 +284,7 @@ final class Engine {
         switch type {
         case .tapDisabledByTimeout, .tapDisabledByUserInput:
             // macOS paused the tap and events were missed, so a swipe or click in progress is over.
-            if gestureOurs && tabSwipe == nil { release(at: ProcessInfo.processInfo.systemUptime * 1000) }
-            gestureDecided = false
-            gestureOurs = false
-            momentumOurs = false
-            tabSwipe = nil
-            pressed = nil
-            interrupted = nil
-            buttonDown = false
-            dragPoints = []
+            forgetInput()
             if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
         case .scrollWheel:
             if handleScroll(event) { return nil }
